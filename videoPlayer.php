@@ -28,22 +28,25 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+if(!class_exists('ModelVideoPlayer'));
+    require_once _PS_MODULE_DIR_.'videoPlayer/classes/ModelVideoPlayer.php';
+
 class VideoPlayer extends Module
 {
     protected $config_form = false;
 
     //Appelé à chaque réinitialisation du module
-    public function __construct()
+    public function __construct(Context $context = null)
     {
+        //Sytème permettant de choisir quel vidéo on place à quel endroit dans le menu "Positions"
+        $this->multiContent = true;
         $this->name = 'videoPlayer';
-        $this->tab = 'front_office_features';
+        $this->tab = 'administration';
         $this->version = '1.0.0';
         $this->author = 'ptipabo';
-        $this->need_instance = 0;
+        //$this->need_instance = 0;
 
-        /**
-         * Set $this->bootstrap to true if your module is compliant with bootstrap (PrestaShop 1.6)
-         */
+        //Set $this->bootstrap to true if your module is compliant with bootstrap (PrestaShop 1.6)
         $this->bootstrap = true;
 
         parent::__construct();
@@ -52,8 +55,8 @@ class VideoPlayer extends Module
             'name' => array(
                 'fr' => 'Vidéos produits',
                 'en' => 'Product Videos'),
-            'class_name' => 'customVideoPlayer',
-            'id_parent' => 'AdminCatalog');
+            'class_name' => 'AdminVideoPlayer',
+            'parent' => 'AdminCatalog');
 
         $this->displayName = $this->l('Video Player');
         $this->description = $this->l('This module allows the user to add video clips to product pages (individually) to better promotes each product.');
@@ -61,10 +64,9 @@ class VideoPlayer extends Module
         $this->ps_versions_compliancy = array('min' => '1.6', 'max' => _PS_VERSION_);
     }
 
-    /**
-     * Don't forget to create update methods if needed:
-     * http://doc.prestashop.com/display/PS16/Enabling+the+Auto-Update
-     */
+    //Don't forget to create update methods if needed:
+    //http://doc.prestashop.com/display/PS16/Enabling+the+Auto-Update
+    
     //Permet d'installer le module via le Back Office
      public function install()
     {
@@ -88,30 +90,38 @@ class VideoPlayer extends Module
     public function installTab($install = true){
         //Si on souhaite installer l'onglet...
         if($install){
-            //On récupère toutes les langues de notre webshop
-            $languages = Language::getLanguages();
             //On crée un nouvel onglet
             $tab = new Tab();
             //On lui attibue un nom
-            $tab->module = $this->newTab['name'];
+            $tab->module = $this->name;
             //On lui donne une classe unique
             $tab->class_name = $this->newTab['class_name'];
             //On lui indique dans quel menu il va devoir être créé
-            $tab->id_parent = Tab::getIdFromClassName($this->newTab['id_parent']);
+            $tab->id_parent = Tab::getIdFromClassName($this->newTab['parent']);
+
+            //On récupère toutes les langues de notre webshop
+            $languages = Language::getLanguages();
             //On définit le nom de l'onglet dans toutes les langues du webshop
-            foreach($languages as $language){
-                if(array_key_exists($language['language_code'], $this->newTab['name'])){
-                    $tab->name[$language['id_lang']] = $this->newTab['name'][$language['language_code']];
+            foreach($languages as $lang){
+                if(array_key_exists($lang['language_code'], $this->newTab['name'])){
+                    $tab->name[$lang['id_lang']] = $this->newTab['name'][$lang['language_code']];
                 }
                 else{
-                    $tab->name[$language['id_lang']] = $this->newTab['name']['en'];
+                    $tab->name[$lang['id_lang']] = $this->newTab['name']['en'];
                 }
             }
             //On enregistre ce nouvel onglet
-            return $tab->save();
+            try {
+                $tab->save();
+            } catch (Exception $e) {
+                echo $e->getMessage();
+                return false;
+            }
+
+            return true;
         }else{//Si on souhaite le désinstaller...
             //On récupère l'id de l'onglet à supprimer
-            $id = Tab::getIdFromClassName('customVideoPlayer');
+            $id = Tab::getIdFromClassName('AdminVideoPlayer');
             //Si l'onglet existe bien, on récupère toutes ses infos et on le supprime
             if($id){
                 $tab = new Tab($id);
@@ -121,14 +131,10 @@ class VideoPlayer extends Module
         }
     }
 
-    /**
-     * Load the configuration form
-     */
-    public function getContent()
-    {
-        /**
-         * If values have been submitted in the form, process.
-         */
+    //Load the configuration form
+    public function getContent(){
+        //If values have been submitted in the form, process.
+        
         if (((bool)Tools::isSubmit('submitVideoPlayerModule')) == true) {
             $this->postProcess();
         }
@@ -140,11 +146,8 @@ class VideoPlayer extends Module
         return $output.$this->renderForm();
     }
 
-    /**
-     * Create the form that will be displayed in the configuration of your module.
-     */
-    protected function renderForm()
-    {
+    //Create the form that will be displayed in the configuration of your module.
+    protected function renderForm(){
         $helper = new HelperForm();
 
         $helper->show_toolbar = false;
@@ -160,7 +163,7 @@ class VideoPlayer extends Module
         $helper->token = Tools::getAdminTokenLite('AdminModules');
 
         $helper->tpl_vars = array(
-            'fields_value' => $this->getConfigFormValues(), /* Add values for your inputs */
+            'fields_value' => $this->getConfigFormValues(), //Add values for your inputs
             'languages' => $this->context->controller->getLanguages(),
             'id_language' => $this->context->language->id,
         );
@@ -168,11 +171,8 @@ class VideoPlayer extends Module
         return $helper->generateForm(array($this->getConfigForm()));
     }
 
-    /**
-     * Create the structure of your form.
-     */
-    protected function getConfigForm()
-    {
+    //Create the structure of your form.
+    protected function getConfigForm(){
         return array(
             'form' => array(
                 'legend' => array(
@@ -220,11 +220,8 @@ class VideoPlayer extends Module
         );
     }
 
-    /**
-     * Set values for the inputs.
-     */
-    protected function getConfigFormValues()
-    {
+    //Set values for the inputs.
+    protected function getConfigFormValues(){
         return array(
             'VIDEOPLAYER_LIVE_MODE' => Configuration::get('VIDEOPLAYER_LIVE_MODE', true),
             'VIDEOPLAYER_ACCOUNT_EMAIL' => Configuration::get('VIDEOPLAYER_ACCOUNT_EMAIL', 'contact@prestashop.com'),
@@ -232,11 +229,8 @@ class VideoPlayer extends Module
         );
     }
 
-    /**
-     * Save form data.
-     */
-    protected function postProcess()
-    {
+    //Save form data.
+    protected function postProcess(){
         $form_values = $this->getConfigFormValues();
 
         foreach (array_keys($form_values) as $key) {
@@ -244,23 +238,25 @@ class VideoPlayer extends Module
         }
     }
 
-    /**
-    * Add the CSS & JavaScript files you want to be loaded in the BO.
-    */
-    public function hookBackOfficeHeader()
-    {
+    //Add the CSS & JavaScript files you want to be loaded in the BO.
+    public function hookBackOfficeHeader(){
         if (Tools::getValue('module_name') == $this->name) {
             $this->context->controller->addJS($this->_path.'views/js/back.js');
             $this->context->controller->addCSS($this->_path.'views/css/back.css');
         }
     }
 
-    /**
-     * Add the CSS & JavaScript files you want to be added on the FO.
-     */
-    public function hookHeader()
-    {
+    //Add the CSS & JavaScript files you want to be added on the FO.
+    public function hookHeader(){
         $this->context->controller->addJS($this->_path.'/views/js/front.js');
         $this->context->controller->addCSS($this->_path.'/views/css/front.css');
+    }
+
+    public function hookDisplayHome(){
+        $videoPlayer = ModelVideoPlayer::getVideoPlayer(true);
+        $this->context->smarty->assign(array(
+            'videoPlayer' => $videoPlayer
+        ));
+        return $this->display(__FILE__, 'videoPlayer_home.tpl');
     }
 }

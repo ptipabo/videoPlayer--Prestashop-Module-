@@ -26,17 +26,18 @@
 $sql = array();
 
 $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'videoPlayer` (
-    `vp_id` int(11) NOT NULL AUTO_INCREMENT,
-    `vp_priority` int(11) UNSIGNED NOT NULL,
-    `vp_autoplay` BIT DEFAULT 0,
-    PRIMARY KEY  (`vp_id`)
+    `id_videoPlayer` int(11) NOT NULL AUTO_INCREMENT,
+    `name` varchar(255) NOT NULL,
+    `autoplay` int(1) default 0,
+    `active` int(1) default 0,
+    PRIMARY KEY  (`id_videoPlayer`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
 $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'videoPlayer_lang` (
-    `vp_lang_id` int(11) NOT NULL AUTO_INCREMENT,
-    `vp_lang_lang` int(11) UNSIGNED NOT NULL,
-    `vp_lang_url` varchar(255),
-    PRIMARY KEY  (`vp_lang_id`)
+    `id_videoPlayer` int(11) NOT NULL,
+    `id_lang` int(11) UNSIGNED,
+    `url` varchar(255),
+    PRIMARY KEY  (`id_videoPlayer`, `id_lang`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
 foreach ($sql as $query) {
